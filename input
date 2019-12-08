@@ -1,0 +1,8 @@
+Name             ips        average  deviation         median         99th %
+part_1        6.34 K      157.73 μs    ±24.36%         150 μs      296.17 μs
+part_1       38.30 K       26.11 μs    ±62.31%          24 μs          58 μs
+
+Name             ips        average  deviation         median         99th %
+part_2          0.63         1.58 s     ±1.44%         1.58 s         1.61 s
+part_2          3.33      300.75 ms     ±8.34%      300.84 ms      361.12 ms
+part_2          7.27      137.64 ms     ±3.48%      135.94 ms      147.45 ms
