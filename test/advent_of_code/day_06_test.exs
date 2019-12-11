@@ -10,11 +10,25 @@ defmodule AdventOfCode.Day06Test do
     assert result == 42
   end
 
-  @tag :skip
   test "part2" do
-    input = nil
+    input = [
+      "COM)B",
+      "B)C",
+      "C)D",
+      "D)E",
+      "E)F",
+      "B)G",
+      "G)H",
+      "D)I",
+      "E)J",
+      "J)K",
+      "K)L",
+      "K)YOU",
+      "I)SAN"
+    ]
+
     result = part2(input)
 
-    assert result
+    assert result == 4
   end
 end
