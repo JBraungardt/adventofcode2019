@@ -29,7 +29,6 @@ defmodule AdventOfCode.Day06 do
       catch
         route -> route
       end
-      |> IO.inspect()
 
     Enum.count(route) - 3
   end
