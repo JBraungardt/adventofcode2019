@@ -5,9 +5,16 @@ defmodule AdventOfCode.Day05Test do
   import AdventOfCode.Day05
 
   test "part1" do
-    # input = [3, 0, 4, 0, 99]
+    input = [3, 0, 4, 0, 99]
 
-    # assert capture_io(fn -> part1(input, 7) end) == "7\n"
+    output =
+      part1(input, nil)
+      |> Intcode.input(7)
+      |> Intcode.consume_outputs()
+      |> elem(0)
+      |> Enum.at(0)
+
+    assert output == 7
   end
 
   test "part2" do

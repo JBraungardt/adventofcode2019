@@ -117,6 +117,6 @@ defmodule AdventOfCode.Day07Test do
 
     result = part2(input)
 
-    assert result == nil
+    assert result == 139_629_729
   end
 end

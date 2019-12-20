@@ -1,13 +1,16 @@
 defmodule Intcode do
-  @type t :: %__MODULE__{
+  require Logger
+
+  @type t :: %Intcode{
           code: map(),
           instruction_pointer: non_neg_integer(),
           inputs: list(integer()),
-          outputs: list(integer())
+          outputs: list(integer()),
+          state: :ready | :halted | :waiting
         }
 
   @enforce_keys [:code]
-  defstruct [:code, instruction_pointer: 0, inputs: [], outputs: []]
+  defstruct [:code, instruction_pointer: 0, inputs: [], outputs: [], state: :ready]
 
   @spec new(list(integer()), list(integer())) :: Intcode.t()
   def new(instructions, inputs \\ [])
@@ -18,43 +21,73 @@ defmodule Intcode do
       |> Enum.map(fn {value, pos} -> {pos, value} end)
       |> Enum.into(%{})
 
-    %__MODULE__{code: code, inputs: inputs}
+    %Intcode{code: code, inputs: inputs}
   end
 
-  @spec process_inputs(Intcode.t(), [integer]) :: [integer]
-  def process_inputs(computer, inputs) do
-    %__MODULE__{outputs: outputs} =
-      %__MODULE__{computer | inputs: inputs}
-      |> Intcode.process_next_instruction()
-
-    outputs
+  @spec input(Intcode.t(), integer) :: Intcode.t()
+  def input(computer, input) when is_integer(input) do
+    input(computer, [input])
   end
 
-  @spec process_next_instruction(Intcode.t()) :: Intcode.t()
-  def process_next_instruction(computer) do
+  @spec input(Intcode.t(), [integer]) :: Intcode.t()
+
+  def input(%Intcode{inputs: inputs, state: :halted} = computer, input) do
+    %Intcode{computer | inputs: inputs ++ input}
+  end
+
+  def input(%Intcode{inputs: inputs} = computer, input) do
+    %Intcode{computer | state: :ready, inputs: inputs ++ input}
+    |> Intcode.run()
+  end
+
+  def run(%Intcode{state: :halted} = computer) do
+    Logger.warn("Program has already halted.")
+
+    computer
+  end
+
+  def run(%Intcode{state: :waiting} = computer) do
+    Logger.info("Program is waiting for input.")
+
+    computer
+  end
+
+  @spec run(Intcode.t()) :: Intcode.t()
+  def run(computer) do
     next_instruction(computer)
     |> perform_operation(computer)
   end
 
-  defp next_instruction(%__MODULE__{code: code, instruction_pointer: ip}) do
+  @spec consume_outputs(Intcode.t()) :: {[integer()], Intcode.t()}
+  def consume_outputs(%Intcode{outputs: []} = computer) do
+    {[], computer}
+  end
+
+  def consume_outputs(%Intcode{outputs: outputs} = computer) do
+    {outputs, %Intcode{computer | outputs: []}}
+  end
+
+  defp next_instruction(%Intcode{code: code, instruction_pointer: ip}) do
     Map.get(code, ip)
     |> Operation.new()
   end
 
-  defp perform_operation(%Operation{op_code: 99}, computer), do: computer
+  defp perform_operation(%Operation{op_code: 99}, computer) do
+    %Intcode{computer | state: :halted}
+  end
 
   defp perform_operation(operation, computer) do
     func = operation_function(operation)
 
     func.(computer, operation)
-    |> process_next_instruction()
+    |> run()
   end
 
   defp operation_function(operation) do
     case operation.op_code do
       1 -> &add/2
       2 -> &multiply/2
-      3 -> &input/2
+      3 -> &input_op/2
       4 -> &output/2
       5 -> &jump_true/2
       6 -> &jump_false/2
@@ -113,9 +146,11 @@ defmodule Intcode do
     %Intcode{computer | instruction_pointer: pos + 4}
   end
 
-  defp input(%Intcode{inputs: []}, _operation), do: throw("No input available")
+  defp input_op(%Intcode{inputs: []} = computer, _operation) do
+    %Intcode{computer | state: :waiting}
+  end
 
-  defp input(
+  defp input_op(
          %Intcode{instruction_pointer: pos, inputs: inputs} = computer,
          %Operation{param1_mode: p1_mode}
        ) do

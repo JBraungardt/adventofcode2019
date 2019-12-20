@@ -1,11 +1,11 @@
 defmodule AdventOfCode.Day05 do
   def part1(args, input_value) do
-    Intcode.new(args, [input_value])
-    |> Intcode.process_next_instruction()
+    Intcode.new(args)
+    |> Intcode.run()
   end
 
   def part2(args, input_value) do
     Intcode.new(args, [input_value])
-    |> Intcode.process_next_instruction()
+    |> Intcode.run()
   end
 end
