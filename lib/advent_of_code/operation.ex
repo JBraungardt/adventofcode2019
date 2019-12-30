@@ -1,5 +1,5 @@
 defmodule Operation do
-  @type mode :: :position_mode | :immediate_mode
+  @type mode :: :position_mode | :immediate_mode | :relative_mode
   @type t :: %__MODULE__{
           op_code: integer(),
           param1_mode: mode(),
@@ -26,6 +26,7 @@ defmodule Operation do
         case mode do
           0 -> :position_mode
           1 -> :immediate_mode
+          2 -> :relative_mode
         end
       end)
 
@@ -38,9 +39,6 @@ defmodule Operation do
   end
 
   defp pad_zeros(list) do
-    for _ <- 1..(5 - length(list)) do
-      0
-    end
-    |> Kernel.++(list)
+    List.duplicate(0, 5 - length(list)) ++ list
   end
 end

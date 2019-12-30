@@ -4,6 +4,7 @@ defmodule AdventOfCode.Day07Test do
 
   import AdventOfCode.Day07
 
+  @tag capture_log: true
   test "part1" do
     input = [3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0]
 
@@ -82,6 +83,7 @@ defmodule AdventOfCode.Day07Test do
     assert result == 65210
   end
 
+  @tag capture_log: true
   test "part2" do
     input = [
       3,

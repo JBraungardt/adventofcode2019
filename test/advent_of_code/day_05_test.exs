@@ -4,6 +4,7 @@ defmodule AdventOfCode.Day05Test do
   import ExUnit.CaptureIO
   import AdventOfCode.Day05
 
+  @tag capture_log: true
   test "part1" do
     input = [3, 0, 4, 0, 99]
 

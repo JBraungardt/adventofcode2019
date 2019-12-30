@@ -4,13 +4,21 @@ defmodule Intcode do
   @type t :: %Intcode{
           code: map(),
           instruction_pointer: non_neg_integer(),
+          relative_base: integer(),
           inputs: list(integer()),
           outputs: list(integer()),
           state: :ready | :halted | :waiting
         }
 
   @enforce_keys [:code]
-  defstruct [:code, instruction_pointer: 0, inputs: [], outputs: [], state: :ready]
+  defstruct [
+    :code,
+    instruction_pointer: 0,
+    inputs: [],
+    relative_base: 0,
+    outputs: [],
+    state: :ready
+  ]
 
   @spec new(list(integer()), list(integer())) :: Intcode.t()
   def new(instructions, inputs \\ [])
@@ -93,15 +101,20 @@ defmodule Intcode do
       6 -> &jump_false/2
       7 -> &less/2
       8 -> &equal/2
+      9 -> &adjust_relative_base/2
     end
   end
 
-  defp get_value(code, pos, :position_mode) do
-    Map.get(code, Map.get(code, pos))
+  defp get_value(%Intcode{code: code}, pos, :position_mode) do
+    Map.get(code, Map.get(code, pos), 0)
   end
 
-  defp get_value(code, pos, :immediate_mode) do
+  defp get_value(%Intcode{code: code}, pos, :immediate_mode) do
     Map.get(code, pos)
+  end
+
+  defp get_value(%Intcode{code: code, relative_base: base}, pos, :relative_mode) do
+    Map.get(code, base + Map.get(code, pos), 0)
   end
 
   defp write_value(%Intcode{code: code} = computer, value, pos, :position_mode) do
@@ -114,16 +127,27 @@ defmodule Intcode do
     throw("Not supported to write value in immediate mode")
   end
 
+  defp write_value(
+         %Intcode{code: code, relative_base: base} = computer,
+         value,
+         pos,
+         :relative_mode
+       ) do
+    code = Map.put(code, base + Map.get(code, pos), value)
+
+    %Intcode{computer | code: code}
+  end
+
   defp add(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{
            param1_mode: p1_mode,
            param2_mode: p2_mode,
            param3_mode: p3_mode
          }
        ) do
-    v1 = get_value(code, pos + 1, p1_mode)
-    v2 = get_value(code, pos + 2, p2_mode)
+    v1 = get_value(computer, pos + 1, p1_mode)
+    v2 = get_value(computer, pos + 2, p2_mode)
 
     computer = write_value(computer, v1 + v2, pos + 3, p3_mode)
 
@@ -131,15 +155,15 @@ defmodule Intcode do
   end
 
   defp multiply(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{
            param1_mode: p1_mode,
            param2_mode: p2_mode,
            param3_mode: p3_mode
          }
        ) do
-    v1 = get_value(code, pos + 1, p1_mode)
-    v2 = get_value(code, pos + 2, p2_mode)
+    v1 = get_value(computer, pos + 1, p1_mode)
+    v2 = get_value(computer, pos + 2, p2_mode)
 
     computer = write_value(computer, v1 * v2, pos + 3, p3_mode)
 
@@ -162,38 +186,38 @@ defmodule Intcode do
   end
 
   defp output(
-         %Intcode{code: code, instruction_pointer: pos, outputs: outputs} = computer,
+         %Intcode{instruction_pointer: pos, outputs: outputs} = computer,
          %Operation{param1_mode: p1_mode}
        ) do
-    value = get_value(code, pos + 1, p1_mode)
+    value = get_value(computer, pos + 1, p1_mode)
 
     %Intcode{computer | instruction_pointer: pos + 2, outputs: outputs ++ [value]}
   end
 
   defp jump_true(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{param1_mode: p1_mode, param2_mode: p2_mode}
        ) do
     next_pos =
-      case get_value(code, pos + 1, p1_mode) do
+      case get_value(computer, pos + 1, p1_mode) do
         0 ->
           pos + 3
 
         _ ->
-          get_value(code, pos + 2, p2_mode)
+          get_value(computer, pos + 2, p2_mode)
       end
 
     %Intcode{computer | instruction_pointer: next_pos}
   end
 
   defp jump_false(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{param1_mode: p1_mode, param2_mode: p2_mode}
        ) do
     next_pos =
-      case get_value(code, pos + 1, p1_mode) do
+      case get_value(computer, pos + 1, p1_mode) do
         0 ->
-          get_value(code, pos + 2, p2_mode)
+          get_value(computer, pos + 2, p2_mode)
 
         _ ->
           pos + 3
@@ -203,15 +227,15 @@ defmodule Intcode do
   end
 
   defp less(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{
            param1_mode: p1_mode,
            param2_mode: p2_mode,
            param3_mode: p3_mode
          }
        ) do
-    v1 = get_value(code, pos + 1, p1_mode)
-    v2 = get_value(code, pos + 2, p2_mode)
+    v1 = get_value(computer, pos + 1, p1_mode)
+    v2 = get_value(computer, pos + 2, p2_mode)
 
     computer =
       case v1 < v2 do
@@ -223,15 +247,15 @@ defmodule Intcode do
   end
 
   defp equal(
-         %Intcode{code: code, instruction_pointer: pos} = computer,
+         %Intcode{instruction_pointer: pos} = computer,
          %Operation{
            param1_mode: p1_mode,
            param2_mode: p2_mode,
            param3_mode: p3_mode
          }
        ) do
-    v1 = get_value(code, pos + 1, p1_mode)
-    v2 = get_value(code, pos + 2, p2_mode)
+    v1 = get_value(computer, pos + 1, p1_mode)
+    v2 = get_value(computer, pos + 2, p2_mode)
 
     computer =
       case v1 == v2 do
@@ -240,5 +264,14 @@ defmodule Intcode do
       end
 
     %Intcode{computer | instruction_pointer: pos + 4}
+  end
+
+  defp adjust_relative_base(
+         %Intcode{instruction_pointer: pos, relative_base: base} = computer,
+         %Operation{param1_mode: p1_mode}
+       ) do
+    v = get_value(computer, pos + 1, p1_mode)
+
+    %Intcode{computer | instruction_pointer: pos + 2, relative_base: base + v}
   end
 end

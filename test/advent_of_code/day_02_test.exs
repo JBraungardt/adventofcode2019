@@ -2,7 +2,7 @@ defmodule AdventOfCode.Day02Test do
   use ExUnit.Case
 
   import AdventOfCode.Day02
-
+  @tag capture_log: true
   test "part1" do
     # input = [1, 0, 0, 0, 99]
     # result = part1(input)
